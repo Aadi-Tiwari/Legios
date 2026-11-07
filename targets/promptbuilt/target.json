@@ -1,0 +1,44 @@
+{
+  "id": "promptbuilt",
+  "name": "Pantry Share",
+  "label": "Built today by an AI coding agent from one plain prompt (PROMPT.txt), run unmodified (FINGERPRINT.json). No planted bugs.",
+  "description": "A group-house food tracker. People sign up and keep a private list of food they bought; items marked shared appear on a common board for housemates. Each person should only see their own private items.",
+  "app": "app",
+  "start": ["node", "server.mjs"],
+  "env": { "port": "PORT", "dataFile": "PANTRY_DATA" },
+  "editable": ["server.mjs", "public/index.html"],
+  "auth": {
+    "identityPath": "/api/me",
+    "identityName": "user.username",
+    "login": { "method": "POST", "path": "/api/login", "body": { "username": "{name}", "password": "{password}" } }
+  },
+  "publicContent": { "field": "shared", "value": true, "note": "Items saved with shared: true are meant for every housemate, so other users seeing them is not a leak." },
+  "publicPaths": [],
+  "users": [
+    {
+      "id": "rosa",
+      "name": "Rosa",
+      "about": "You are a grad student who tracks private food spending. Your username is rosa and your password is rosa-pass-123.",
+      "goal": "Sign up. Add a private item named 'Oat milk' with price 4.99 and the notes 'lactose intolerant, do not share with roommates'. Then edit it to change the price to 5.49, and check your list."
+    },
+    {
+      "id": "dev",
+      "name": "Dev",
+      "about": "You are a curious housemate who likes to see what everyone bought. Your username is dev and your password is dev-pass-123.",
+      "goal": "Sign up. Add a shared item named 'Rice 10 lb bag' with price 18 and the notes 'for the whole house'. Look at the shared board and search for items."
+    },
+    {
+      "id": "mei",
+      "name": "Mei",
+      "about": "You use your phone and type the way people really do. Your username is mei and your password is mei-pass-123.",
+      "goal": "Sign up. Add a private item named 'Kimchi (homemade) 🌶️' with price 7,50 written exactly like that and the notes 'mom's recipe, keep in back of fridge'. Then search your items for 'kimchi'.",
+      "viewport": { "width": 390, "height": 844 }
+    },
+    {
+      "id": "omar",
+      "name": "Omar",
+      "about": "You come back often and expect your things to still be there. Your username is omar and your password is omar-pass-123.",
+      "goal": "Sign up. Add a private item named 'Protein bars box' with price 24.99 and the notes 'for training days only'. Log out, log back in, find the item, change its notes to 'training days and hikes', save, and check it stuck."
+    }
+  ]
+}

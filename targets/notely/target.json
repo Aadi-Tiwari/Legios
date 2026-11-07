@@ -1,0 +1,108 @@
+{
+  "id": "notely",
+  "name": "Notely",
+  "label": "Demo target written at the event with deliberate bugs",
+  "description": "A personal notes app. Users should only see and edit their own notes.",
+  "app": "app",
+  "start": [
+    "node",
+    "server.mjs"
+  ],
+  "env": {
+    "port": "PORT",
+    "dataFile": "DATA_FILE"
+  },
+  "editable": [
+    "server.mjs",
+    "public/index.html"
+  ],
+  "auth": {
+    "identityPath": "/api/me",
+    "identityName": "name",
+    "login": {
+      "method": "POST",
+      "path": "/api/login",
+      "body": {
+        "name": "{name}",
+        "password": "{password}"
+      }
+    }
+  },
+  "publicPaths": [],
+  "users": [
+    {
+      "id": "maria",
+      "name": "Maria",
+      "about": "You are a nurse who keeps private notes. Your account name is maria and your password is maria-pass-1.",
+      "goal": "Create an account. Write a private note titled 'Therapy appointments' with the text 'Tuesday 4pm with Dr. Lin, insurance member 88213'. Then open that note from your list, edit it to add 'bring referral letter', save it, and check that your change was kept."
+    },
+    {
+      "id": "kevin",
+      "name": "Kevin",
+      "about": "You are a student who is curious how apps work. Your account name is kevin and your password is kevin-pass-1.",
+      "goal": "Create an account. Write a note titled 'Groceries' with the text 'milk, eggs, spinach, rice'. Open your note. You notice the address ends with a note number, so try opening #/note/1 to see what happens."
+    },
+    {
+      "id": "priya",
+      "name": "Priya",
+      "about": "You use apps on your phone. Your account name is priya and your password is priya-pass-1.",
+      "goal": "Create an account. Write a note titled 'Study plan' with the text 'review c++ (pointers) chapter 4'. Then search your notes for 'c++ (pointers)'.",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "id": "sam",
+      "name": "Sam",
+      "about": "You come back to apps often and expect your work to be kept. Your account name is sam and your password is sam-pass-1.",
+      "goal": "Create an account. Write a note titled 'Ideas' with the text 'start a running club on Saturdays'. Sign out, sign back in, open the note, change its text to 'running club on Sundays instead', save, then reopen it to confirm the change stuck."
+    }
+  ],
+  "outcomes": [
+    {
+      "id": "note-content-persists",
+      "name": "Saved note content persists when read again",
+      "kind": "persist",
+      "trigger": {
+        "method": "PUT",
+        "path": "^/api/notes?/\\d+$"
+      },
+      "readPath": "/api/notes/{id}",
+      "fields": [
+        "title",
+        "body"
+      ]
+    },
+    {
+      "id": "new-note-persists",
+      "name": "New note content persists when read again",
+      "kind": "persist",
+      "trigger": {
+        "method": "POST",
+        "path": "^/api/notes$"
+      },
+      "readPath": "/api/notes/{id}",
+      "fields": [
+        "title",
+        "body"
+      ]
+    },
+    {
+      "id": "search-finds-saved-note",
+      "name": "Search returns previously saved matching notes",
+      "kind": "search",
+      "trigger": {
+        "method": "GET",
+        "path": "^/api/search$"
+      },
+      "queryParam": "q",
+      "sourcePath": "^/api/notes$",
+      "searchFields": [
+        "title",
+        "body"
+      ],
+      "identityField": "id"
+    }
+  ]
+}

@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Legios</title>
+<style>
+  :root {
+    --bg: #0c0d10; --panel: #14161b; --panel2: #1a1d23; --line: #262a32; --text: #e7e9ee; --muted: #8b919c; --dim: #5d636e;
+    --accent: #f5b544; --red: #f2555a; --orange: #f59a44; --yellow: #e8c547; --green: #3ecf8e; --blue: #6aa8ff;
+    --mono: ui-monospace, "Cascadia Code", Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.45 "Segoe UI", system-ui, sans-serif; display: flex; flex-direction: column; }
+  button { font: inherit; cursor: pointer; border-radius: 7px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); padding: 6px 12px; }
+  button.primary { background: var(--accent); color: #1b1407; border-color: var(--accent); font-weight: 600; }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+  a { color: var(--accent); }
+  header { display: flex; align-items: center; gap: 18px; padding: 12px 18px; border-bottom: 1px solid var(--line); background: linear-gradient(180deg, #121419, var(--bg)); }
+  .brand { display: flex; flex-direction: column; min-width: 210px; }
+  .wordmark { font-size: 22px; font-weight: 800; letter-spacing: .06em; }
+  .wordmark span { color: var(--accent); }
+  .tagline { color: var(--muted); font-size: 11px; max-width: 300px; }
+  .target { flex: 1; min-width: 0; border-left: 1px solid var(--line); padding-left: 16px; }
+  .target b { font-size: 14px; }
+  .target div { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pill { display: inline-block; padding: 2px 9px; border-radius: 99px; font-size: 11px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; background: var(--panel2); border: 1px solid var(--line); color: var(--muted); }
+  .pill.live { color: var(--accent); border-color: #5b4318; background: #241c0c; }
+  .pill.ok { color: var(--green); border-color: #1d5a40; background: #0d2219; }
+  .pill.bad { color: var(--red); border-color: #5e2224; background: #251011; }
+  .meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; color: var(--muted); font-size: 11px; }
+  .actions { display: flex; gap: 8px; }
+  .crowdbar { display: flex; align-items: stretch; border-bottom: 1px solid var(--line); background: var(--panel); }
+  .crowdctl { padding: 7px 14px; border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 5px; min-width: 330px; }
+  .crowdctl .t { font-size: 11px; color: var(--muted); }
+  .crowdctl .t b { color: var(--text); letter-spacing: .08em; text-transform: uppercase; font-size: 10.5px; margin-right: 6px; }
+  .crowdctl .btns { display: flex; gap: 6px; }
+  .crowdctl button { padding: 4px 9px; font-size: 12px; }
+  .crowd { flex: 1; display: flex; gap: 1px; background: var(--line); }
+  .crowd > div { flex: 1; background: var(--panel); padding: 6px 12px; min-width: 0; }
+  .crowd b { display: block; font-size: 17px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .crowd span { color: var(--muted); font-size: 10.5px; }
+  .crowd .note { flex: 2.2; color: var(--dim); font-size: 10.5px; display: flex; flex-direction: column; justify-content: center; }
+  .crowd .note .eps { color: var(--orange); font-family: var(--mono); }
+  .crowd b.bad { color: var(--red); } .crowd b.good { color: var(--green); }
+  main { flex: 1; min-height: 0; display: grid; grid-template-columns: 1.05fr 1fr 1.25fr; gap: 1px; background: var(--line); }
+  section { background: var(--bg); display: flex; flex-direction: column; min-height: 0; }
+  section > h2 { margin: 0; padding: 10px 14px; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; }
+  .scroll { overflow-y: auto; padding: 10px; flex: 1; min-height: 0; }
+  .empty { color: var(--dim); padding: 24px 8px; text-align: center; }
+  .user { display: grid; grid-template-columns: 112px 1fr; gap: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 9px; margin-bottom: 8px; }
+  .user.running { border-color: #4a3a17; }
+  .shot { width: 112px; height: 76px; border-radius: 6px; background: #000 center/cover no-repeat; border: 1px solid var(--line); }
+  .shot.phone { width: 44px; height: 76px; justify-self: center; }
+  .uhead { display: flex; align-items: center; gap: 6px; }
+  .uhead b { font-size: 14px; }
+  .badge { font-size: 10px; padding: 1px 6px; border-radius: 4px; background: var(--panel2); color: var(--muted); border: 1px solid var(--line); }
+  .thought { color: var(--text); margin: 3px 0; font-style: italic; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .counts { color: var(--muted); font-size: 11px; }
+  .counts .err { color: var(--red); }
+  .said { font-size: 11.5px; color: var(--muted); margin-top: 4px; font-style: italic; }
+  .feedback { margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 10px; }
+  .fbhead { font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--dim); margin-bottom: 6px; }
+  .fb { display: flex; gap: 8px; font-size: 12px; padding: 4px 0; color: var(--muted); }
+  .fbkind { flex: none; font-size: 10.5px; font-weight: 600; padding: 1px 6px; border-radius: 5px; background: var(--line); color: var(--text, #ddd); height: fit-content; }
+  .fb.frustrating .fbkind { background: #4a2a12; color: #f5b67a; } .fb.confusing .fbkind { background: #3d3612; color: #f0d97a; } .fb.missing .fbkind { background: #1f3346; color: #8cc4f5; }
+  .mem { grid-column: 1 / -1; font-family: var(--mono); font-size: 10.5px; color: var(--dim); border-top: 1px dashed var(--line); padding-top: 5px; }
+  .mem div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .finding { background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--dim); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; cursor: pointer; }
+  .finding.critical { border-left-color: var(--red); }
+  .finding.high { border-left-color: var(--orange); }
+  .finding.sel { outline: 1px solid var(--accent); background: var(--panel2); }
+  .finding .row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .kind { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+  .kind.data_leak { color: var(--red); } .kind.crash { color: var(--orange); } .kind.false_success { color: var(--yellow); }
+  .finding .title { font-weight: 600; font-size: 13.5px; }
+  .finding .foot { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
+  .conf { font-size: 10px; padding: 1px 7px; border-radius: 99px; }
+  .conf.confirmed { background: #0d2219; color: var(--green); border: 1px solid #1d5a40; }
+  .conf.uncertain { background: var(--panel2); color: var(--muted); border: 1px solid var(--line); }
+  .fixstate { font-size: 11px; color: var(--muted); }
+  .fixstate.fixed { color: var(--green); font-weight: 600; }
+  .story h3 { margin: 0 0 6px; font-size: 15px; }
+  .story .lbl { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); margin: 10px 0 3px; }
+  .story p { margin: 0; }
+  .story ol { margin: 0; padding-left: 20px; color: #c9ccd3; }
+  .story ol li { margin: 1px 0; }
+  .ev { font-family: var(--mono); font-size: 11px; background: #0a0b0d; border: 1px solid var(--line); border-radius: 7px; padding: 8px; white-space: pre-wrap; word-break: break-all; max-height: 110px; overflow: auto; }
+  .story img { max-width: 100%; border-radius: 7px; border: 1px solid var(--line); margin-top: 6px; }
+  .timeline { display: flex; gap: 6px; margin: 4px 0 10px; }
+  .stage { flex: 1; padding: 7px 8px; border-radius: 8px; background: var(--panel); border: 1px solid var(--line); font-size: 11px; color: var(--muted); }
+  .stage b { display: block; color: var(--text); font-size: 12px; }
+  .stage.active { border-color: var(--accent); color: var(--accent); }
+  .stage.done { border-color: #1d5a40; }
+  .stage.done b::after { content: " \2713"; color: var(--green); }
+  .stage.failed { border-color: #5e2224; }
+  .banner { padding: 10px 12px; border-radius: 9px; font-weight: 600; margin-bottom: 10px; }
+  .banner.ok { background: #0d2219; border: 1px solid #1d5a40; color: var(--green); }
+  .banner.bad { background: #251011; border: 1px solid #5e2224; color: var(--red); }
+  .banner.wait { background: #241c0c; border: 1px solid #5b4318; color: var(--accent); }
+  .diff, .ev, .mem, #log { font-variant-ligatures: none; font-feature-settings: "liga" 0, "calt" 0; }
+  .diff { font-family: var(--mono); font-size: 11px; background: #0a0b0d; border: 1px solid var(--line); border-radius: 7px; padding: 6px 0; overflow-x: auto; max-height: 190px; overflow-y: auto; }
+  .diff div { padding: 0 10px; white-space: pre; }
+  .diff .add { background: #0f2a1d; color: #7fe0b0; } .diff .del { background: #2c1214; color: #f59a9d; } .diff .hunk { color: var(--blue); } .diff .file { color: var(--dim); }
+  table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+  td { padding: 4px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  td.res { width: 46px; font-weight: 700; font-size: 10.5px; }
+  td.res.pass { color: var(--green); } td.res.fail { color: var(--red); }
+  td.det { color: var(--dim); font-family: var(--mono); font-size: 10.5px; }
+  .cmp { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .cmp h4 { margin: 0 0 4px; font-size: 11px; color: var(--muted); font-weight: 600; }
+  footer { height: 112px; border-top: 1px solid var(--line); background: var(--panel); display: flex; flex-direction: column; }
+  footer h2 { margin: 0; padding: 5px 14px; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
+  #log { overflow-y: auto; padding: 0 14px 6px; font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  #log div span { color: var(--dim); margin-right: 8px; }
+  #log div:first-child { color: var(--text); }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><div class="wordmark">LEGI<span>O</span>S</div><div class="tagline">You tested your app as yourself. Legios tests what happens when other people use it.</div></div>
+  <div class="target"><b id="appName">No run yet</b><div id="appDesc">Start a run to send AI users into the app.</div></div>
+  <div class="meta"><span id="phase" class="pill">idle</span><span id="model"></span></div>
+  <div class="actions"><button id="runBtn" class="primary" title="Live AI users explore the app">Run explorers</button><button id="runHeadless">Run headless</button></div>
+</header>
+<div class="crowdbar">
+  <div class="crowdctl">
+    <div class="t"><b>Explorers</b>live AI users · <b>Crowd</b>replayed browser users</div>
+    <div class="btns"><button id="crowdOrig">Crowd: 150 users on original</button><button id="crowdFixed">Crowd: 150 users on fixed app</button></div>
+  </div>
+  <div class="crowd" id="crowd"><div class="note">No crowd run yet. A crowd replays the recorded journeys as separate browser users, each with their own account.</div></div>
+</div>
+<div id="finalChecks" style="padding:8px 14px;border-bottom:1px solid var(--line)" aria-live="polite"></div>
+<div id="actionError" role="alert" style="color:var(--red);padding:0 14px"></div>
+<main>
+  <section><h2><span>Users</span><span id="userCount"></span></h2><div class="scroll" id="users"><div class="empty">No users yet.</div></div></section>
+  <section><h2><span>Findings</span><span id="findCount"></span></h2><div class="scroll" id="findings"><div class="empty">Findings appear after the users finish.</div></div></section>
+  <section><h2><span>Fix verification</span><span id="fixLabel"></span></h2><div class="scroll" id="detail"><div class="empty">Select a finding to see its story and fix.</div></div></section>
+</main>
+<footer><h2>Activity</h2><div id="log"></div></footer>
+<script>
+const $ = (id) => document.getElementById(id);
+// Small DOM builder: all state text goes through textContent, never innerHTML.
+function h(tag, props = {}, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(props || {})) {
+    if (v == null || v === false) continue;
+    if (k === "class") el.className = v;
+    else if (k === "text") el.textContent = v;
+    else if (k === "style") el.setAttribute("style", v);
+    else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+    else el.setAttribute(k, v);
+  }
+  for (const kid of kids.flat()) if (kid != null && kid !== false) el.append(kid instanceof Node ? kid : document.createTextNode(String(kid)));
+  return el;
+}
+const KIND = { data_leak: "Data leak", crash: "Crash", false_success: "False success", outcome_failure: "Outcome failed" };
+const FIX_TEXT = { replaying: "Replaying original", drafting: "Codex drafting fix", fix_proposed: "Fix proposed", verifying: "Verifying patch", fixed: "Fixed and verified", failing: "Patch did not fix it", blocked: "Verification blocked", error: "Repair error", no_change: "No change proposed", interrupted: "Interrupted", already_fixed: "Already fixed and verified" };
+let selected = null;           // finding signature
+const last = {};               // render keys, to skip unchanged sections
+
+async function post(path) {
+  try {
+    const response = await fetch(path, { method: "POST" });
+    if (!response.ok) throw new Error((await response.json()).error || `Request failed (${response.status})`);
+    $("actionError").textContent = "";
+  } catch (error) { $("actionError").textContent = error.message; }
+  poll();
+}
+$("runBtn").onclick = () => post("/api/run");
+$("runHeadless").onclick = () => post("/api/run?headed=0");
+
+function changed(key, value) { const s = JSON.stringify(value); if (last[key] === s) return false; last[key] = s; return true; }
+
+function renderHeader(busy, st) {
+  $("runBtn").disabled = $("runHeadless").disabled = busy;
+  if (!st) return;
+  $("appName").textContent = `Testing: ${st.app?.name || "app"}`;
+  $("appDesc").textContent = st.app?.description || "";
+  const ph = $("phase");
+  ph.textContent = busy && st.phase === "done" ? "repairing" : st.phase;
+  ph.className = "pill " + (busy || ["exploring", "checking"].includes(st.phase) ? "live" : st.phase === "done" ? "ok" : ["failed", "interrupted"].includes(st.phase) ? "bad" : "");
+  $("model").textContent = `Users: ${st.model || "local model"} · Repair: Codex` + (st.seconds ? ` · run ${st.seconds}s` : "");
+}
+
+$("crowdOrig").onclick = () => post("/api/crowd?users=150&target=original");
+$("crowdFixed").onclick = () => post("/api/crowd?users=150&target=fixed");
+
+function renderCrowd(c, busy) {
+  $("crowdOrig").disabled = $("crowdFixed").disabled = busy;
+  const el = $("crowd");
+  if (!changed("crowd", c)) return;
+  el.replaceChildren();
+  if (!c) return el.append(h("div", { class: "note", text: "No crowd run yet. A crowd replays the recorded journeys as separate browser users, each with their own account." }));
+  const stat = (v, l, cls) => h("div", {}, h("b", { class: cls || null, text: v ?? "-" }), h("span", { text: l }));
+  const ms = (v) => (v != null ? v + " ms" : null);
+  const eps = Object.entries(c.errorsByEndpoint || {}).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, n]) => `${k} ×${n}`).join(" · ");
+  el.append(
+    stat(String(c.which || "").startsWith("fixed") ? "Fixed" : "Original", c.status === "error" && c.error ? c.error : c.status === "done" ? "app the crowd used" : `crowd ${c.status}`, c.status === "error" ? "bad" : null),
+    stat(c.started != null ? `${c.started}/${c.requested}` : c.requested, "Users started"),
+    stat(c.active, "Active now"),
+    stat(c.peakSimultaneous, "Peak simultaneous"),
+    stat(c.completed, "Completed journeys", c.completed ? "good" : null),
+    stat(c.failed, "Failed journeys", c.failed ? "bad" : null),
+    stat(c.requests, "Requests"),
+    stat(c.serverErrors, "Server errors (5xx)", c.serverErrors ? "bad" : null),
+    stat(`${ms(c.p50ms) ?? "-"} / ${ms(c.p95ms) ?? "-"}`, "Median / p95"),
+    stat(c.seconds != null ? c.seconds + " s" : null, "Duration"),
+    h("div", { class: "note" }, "Replays recorded journeys as separate browser users with their own accounts. No AI calls. All numbers measured in this run.",
+      (c.pageErrors || c.blockedSteps) ? h("span", { text: `Page errors ${c.pageErrors ?? 0} · blocked steps ${c.blockedSteps ?? 0}` }) : null,
+      eps ? h("span", { class: "eps", text: eps }) : null));
+}
+
+function renderUsers(st) {
+  const users = Object.values(st?.users || {});
+  if (!changed("users", [st?.runId, users])) return;
+  $("userCount").textContent = users.length ? `${users.filter((u) => u.status === "finished").length}/${users.length} done` : "";
+  const box = $("users");
+  box.replaceChildren();
+  if (!users.length) return box.append(h("div", { class: "empty", text: "No users yet." }));
+  for (const u of users) {
+    const phone = u.viewport && u.viewport.width < 600;
+    const shot = h("div", { class: "shot" + (phone ? " phone" : "") });
+    if (u.lastShot) shot.style.backgroundImage = `url("/runs/${encodeURIComponent(st.runId)}/${u.lastShot.split("/").map(encodeURIComponent).join("/")}")`;
+    box.append(h("div", { class: "user" + (u.status === "running" ? " running" : "") },
+      shot,
+      h("div", {},
+        h("div", { class: "uhead" }, h("b", { text: u.name }), phone && h("span", { class: "badge", text: "phone" }),
+          h("span", { class: "pill " + (u.status === "running" ? "live" : u.status === "finished" ? "ok" : u.status === "failed" ? "bad" : ""), text: u.status || "waiting" })),
+        h("div", { class: "thought", text: u.current ? `"${u.current}"` : u.goal }),
+        h("div", { class: "counts" }, `${u.steps ?? 0} steps · ${u.requests ?? 0} requests · `, h("span", { class: u.errors ? "err" : "", text: `${u.errors ?? 0} errors` }),
+          u.rememberedVisits ? h("span", { class: "badge", text: `remembers ${u.rememberedVisits} visit${u.rememberedVisits > 1 ? "s" : ""}` }) : null),
+        u.reflection?.summary ? h("div", { class: "said", text: `Said after the visit: "${u.reflection.summary}"` }) : null),
+      (u.memory || []).length ? h("div", { class: "mem" }, (u.memory || []).slice(-3).map((m) => h("div", { text: m, title: m }))) : null));
+  }
+}
+
+function renderFindings(st, busy) {
+  const findings = st?.findings || [];
+  const fixes = st?.fixes || {};
+  if (!changed("findings", [st?.runId, findings, Object.fromEntries(Object.entries(fixes).map(([k, v]) => [k, v.status])), st?.recheck, selected, busy, st?.feedback])) return;
+  $("findCount").textContent = findings.length ? `${findings.filter((f) => f.status === "confirmed").length} confirmed` : "";
+  const box = $("findings");
+  box.replaceChildren();
+  // UX feedback from the AI users: opinions, shown apart from confirmed bugs. Only points that cite a real step.
+  const fb = st?.feedback;
+  const feedbackBlock = () => {
+    if (!fb?.byKind?.length) return null;
+    const LABEL = { confusing: "Confusing", frustrating: "Frustrating", missing: "Missing", liked: "Liked" };
+    return h("div", { class: "feedback" },
+      h("div", { class: "fbhead", text: `What the AI users said (opinions, not confirmed bugs) · goal met ${fb.goalMet}/${fb.users}` }),
+      fb.byKind.filter((g) => g.kind !== "liked").flatMap((g) => g.points.slice(0, 3).map((p) =>
+        h("div", { class: `fb ${g.kind}` }, h("span", { class: "fbkind", text: LABEL[g.kind] }), h("span", { text: `${p.user}: ${p.text}` })))));
+  };
+  if (!findings.length) { box.append(h("div", { class: "empty", text: st?.phase === "done" ? "No confirmed bugs in this run." : "Findings appear after the users finish." })); const f = feedbackBlock(); if (f) box.append(f); return; }
+  queueMicrotask(() => { const f = feedbackBlock(); if (f) box.append(f); });
+  const order = { critical: 0, high: 1, medium: 2, low: 3 };
+  findings.map((f, i) => ({ f, i })).sort((a, b) => (order[a.f.severity] ?? 9) - (order[b.f.severity] ?? 9)).forEach(({ f, i }) => {
+    const fix = fixes[f.signature];
+    const final = st?.recheck?.status === "done" && st.recheck.results?.find((r) => r.signature === f.signature);
+    box.append(h("div", { class: `finding ${f.severity}${selected === f.signature ? " sel" : ""}`, onclick: () => { selected = f.signature; poll(); } },
+      h("div", { class: "row" }, h("span", { class: `kind ${f.kind}`, text: KIND[f.kind] || f.kind }), h("span", { class: "badge", text: f.severity })),
+      h("div", { class: "title", text: f.title }),
+      h("div", { class: "foot" },
+        h("span", { class: `conf ${f.status}`, text: f.status === "confirmed" ? "Confirmed: reproduced" : "Uncertain" }),
+        final?.status === "fixed" ? h("span", { class: "fixstate fixed", text: "Fixed on combined version" })
+          : h("div", {}, fix && h("span", { class: "fixstate", text: final ? `Combined version: ${final.status}. ` : `${FIX_TEXT[fix.status] || fix.status}. ` }),
+            h("button", { class: "primary", disabled: busy || f.status !== "confirmed" ? "" : null, onclick: (e) => { e.stopPropagation(); selected = f.signature; post(`/api/findings/${i}/fix`); }, text: fix ? "Retry fix" : "Fix it" })))));
+  });
+  if (!selected && findings.length) selected = findings.slice().sort((a, b) => (order[a.severity] ?? 9) - (order[b.severity] ?? 9))[0].signature;
+}
+
+function checksTable(result) {
+  const checks = result?.contract?.checks;
+  if (!checks) return h("div", { class: "counts", text: result ? `${result.status}${result.reproduced ? " (failure reproduced)" : result.reproduced === false ? " (failure did not reproduce)" : ""}` : "Not run yet" });
+  return h("table", {}, h("tbody", {}, checks.map((c) => h("tr", {},
+    h("td", { class: "res " + (c.pass ? "pass" : "fail"), text: c.pass ? "PASS" : "FAIL" }), h("td", { text: c.name }), h("td", { class: "det", text: c.detail })))));
+}
+
+function renderDiff(diff) {
+  const box = h("div", { class: "diff" });
+  for (const line of String(diff || "").split("\n")) {
+    if (/^(index |new file|deleted file)/.test(line)) continue;
+    const cls = /^(\+\+\+|---|diff )/.test(line) ? "file" : line.startsWith("+") ? "add" : line.startsWith("-") ? "del" : line.startsWith("@@") ? "hunk" : "";
+    box.append(h("div", { class: cls, text: line || " " }));
+  }
+  return box;
+}
+
+function renderFinalChecks(st, busy) {
+  const sweep = st?.recheck;
+  if (!changed("finalChecks", [st?.runId, sweep, busy])) return;
+  const box = $("finalChecks");
+  box.replaceChildren(h("button", { disabled: busy || !st?.findings?.length ? "" : null, onclick: () => post("/api/recheck"), text: "Recheck all findings" }));
+  if (!sweep) return box.append(" Final combined version has not been checked yet.");
+  box.append(h("span", { text: ` Final combined version: ${sweep.status}. ` }));
+  for (const row of sweep.results || []) box.append(h("div", { class: "counts", text: `${row.status === "fixed" ? "FIXED" : row.status === "failing" ? "STILL FAILING" : "BLOCKED"}: ${row.title}`, title: row.error || "" }));
+  const others = [...new Set((sweep.results || []).flatMap((r) => r.otherFindings || []))];
+  if (others.length) box.append(h("div", { class: "counts", text: `Other observations during replay: ${others.join("; ")}` }));
+}
+
+function renderDetail(st) {
+  const f = (st?.findings || []).find((x) => x.signature === selected);
+  const fix = f && st.fixes?.[f.signature];
+  const final = st?.recheck?.results?.find((r) => r.signature === f?.signature);
+  if (!changed("detail", [st?.runId, f, fix, final])) return;
+  const box = $("detail");
+  box.replaceChildren();
+  $("fixLabel").textContent = fix ? FIX_TEXT[fix.status] || fix.status : "";
+  if (!f) return box.append(h("div", { class: "empty", text: "Select a finding to see its story and fix." }));
+  const ev = f.evidence || {};
+  const shotUrl = ev.shot ? `/runs/${encodeURIComponent(st.runId)}/${ev.shot.split("/").map(encodeURIComponent).join("/")}` : null;
+  const index = st.findings.indexOf(f);
+  box.append(h("a", { href: `/api/findings/${index}/export`, download: `legios-finding-${index}.json`, text: "Download developer report" }));
+  box.append(h("div", { class: "cmp", style: "margin:12px 0" },
+    h("div", {}, h("h4", { text: "Before" }), h("p", { text: f.observed })),
+    h("div", {}, h("h4", { text: "After" }), h("p", { text: final ? `Final combined version: ${final.status}.` : fix?.after ? `Selected patch: ${fix.after.status}. Final combined version not checked.` : "Awaiting a verified repair." }))));
+  if (final) box.append(checksTable(final));
+
+  if (fix) {
+    if (fix.status === "fixed") box.append(h("div", { class: "banner ok", text: "Selected finding fixed: the recorded journey and configured checks passed on this patch. See final combined checks for current status." }));
+    else if (fix.status === "already_fixed") box.append(h("div", { class: "banner ok", text: "Already fixed by an earlier verified fix: the journey was replayed on the latest version and every check passed." }));
+    else if (["failing", "blocked", "error", "no_change", "interrupted"].includes(fix.status)) box.append(h("div", { class: "banner bad", text: `${FIX_TEXT[fix.status]}${fix.error ? ": " + fix.error : ""}. This finding stays open.` }));
+    else box.append(h("div", { class: "banner wait", text: FIX_TEXT[fix.status] + "…" }));
+    const stages = [["Replay original", "replaying", fix.before], ["Codex draft", "drafting", fix.applied], ["Verify candidate", "verifying", fix.after]];
+    const idx = { replaying: 0, drafting: 1, fix_proposed: 2, verifying: 2 }[fix.status];
+    box.append(h("div", { class: "timeline" }, stages.map(([name, , done], i) => {
+      const failed = i === 2 && ["failing", "blocked"].includes(fix.status);
+      return h("div", { class: "stage " + (failed ? "failed" : done ? "done" : idx === i ? "active" : "") }, h("b", { text: name }),
+        i === 0 ? (fix.before ? (fix.before.status === "failing" || fix.before.reproduced ? "Failure reproduced" : "Did not reproduce") : "Clean start, no model")
+          : i === 1 ? (fix.applied ? `${fix.applied.length} file(s), ${fix.seconds}s` : "From the evidence")
+            : (fix.after ? fix.after.status : "Own port and data"));
+    })));
+    if (fix.summary) box.append(h("div", { class: "lbl", text: "Proposed fix" }), h("p", { text: fix.summary }));
+    if (fix.diff) box.append(renderDiff(fix.diff));
+    if (fix.before || fix.after) box.append(h("div", { class: "lbl", text: "Privacy and workflow checks" }),
+      h("div", { class: "cmp" }, h("div", {}, h("h4", { text: "Original app" }), checksTable(fix.before)), h("div", {}, h("h4", { text: "Patched copy" }), checksTable(fix.after))));
+  }
+
+  box.append(h("div", { class: "story" },
+    h("div", { class: "lbl", text: KIND[f.kind] || f.kind }), h("h3", { text: f.title }),
+    h("div", { class: "lbl", text: "Expected" }), h("p", { text: f.expected }),
+    h("div", { class: "lbl", text: "Observed" }), h("p", { text: f.observed }),
+    h("div", { class: "lbl", text: "Evidence" }),
+    h("div", { class: "ev", text: [ev.request && `${ev.request} -> ${ev.status}`, ev.discovery && `Found by: ${ev.discovery}`, ev.requester && `Requester: ${ev.requester} · Owner: ${ev.owner}`, ev.leakedText && `Private text exposed: "${ev.leakedText}"`, ev.toast && `Notification shown: "${ev.toast}"`, ev.response && `Response: ${ev.response}`].filter(Boolean).join("\n") }),
+    shotUrl && h("img", { src: shotUrl, alt: "Screenshot at the failing step" }),
+    h("div", { class: "lbl", text: "How to reproduce" }), h("ol", {}, (f.steps || []).map((s) => h("li", { text: s }))),
+    h("div", { class: "lbl", text: "Confirmation" }), h("p", { text: f.confirmation }),
+    h("div", { class: "lbl", text: "Did the patch correct it?" }),
+    h("p", { text: !fix ? "Not repaired yet." : fix.status === "fixed" ? "Yes. The recorded journey was replayed on the patched copy and every check passed." : FIX_TEXT[fix.status] || fix.status })));
+}
+
+function renderLog(st) {
+  const items = (st?.log || []).slice().reverse();
+  if (!changed("log", items.length + (items[0]?.at || ""))) return;
+  $("log").replaceChildren(...items.map((l) => h("div", {}, h("span", { text: new Date(l.at).toLocaleTimeString() }), l.msg)));
+}
+
+async function poll() {
+  try {
+    const { busy, state } = await (await fetch("/api/state", { cache: "no-store" })).json();
+    renderHeader(busy, state);
+    renderCrowd(state?.crowd, busy);
+    renderUsers(state);
+    renderFindings(state, busy);
+    renderFinalChecks(state, busy);
+    renderDetail(state);
+    renderLog(state);
+  } catch { $("phase").textContent = "offline"; $("phase").className = "pill bad"; }
+}
+poll();
+setInterval(poll, 1000);
+</script>
+</body>
+</html>

@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notely</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 0; background: #f6f5f1; color: #222; }
+  header { background: #2d2a26; color: #fff; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; }
+  main { max-width: 720px; margin: 24px auto; padding: 0 16px; }
+  .card { background: #fff; border-radius: 10px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  input, textarea { width: 100%; box-sizing: border-box; padding: 8px; margin: 4px 0 10px; border: 1px solid #ccc; border-radius: 6px; font: inherit; }
+  textarea { min-height: 90px; }
+  button { background: #c2410c; color: #fff; border: 0; border-radius: 6px; padding: 8px 14px; font: inherit; cursor: pointer; }
+  button.secondary { background: #57534e; }
+  a { color: #c2410c; }
+  .notes li { margin: 6px 0; }
+  .toast { position: fixed; bottom: 20px; right: 20px; background: #166534; color: #fff; padding: 10px 16px; border-radius: 8px; display: none; }
+  .error { color: #b91c1c; }
+  .row { display: flex; gap: 8px; }
+</style>
+</head>
+<body>
+<header><strong>Notely</strong><span id="who"></span></header>
+<main id="app"></main>
+<div class="toast" id="toast" role="status"></div>
+<script>
+const app = document.getElementById("app");
+const toast = (msg) => { const t = document.getElementById("toast"); t.textContent = msg; t.style.display = "block"; setTimeout(() => t.style.display = "none", 2500); };
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+let me = null;
+
+async function call(method, path, body) {
+  const res = await fetch(path, { method, headers: { "content-type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
+  let data = null; try { data = await res.json(); } catch {}
+  return { ok: res.ok, status: res.status, data };
+}
+
+function renderAuth(error = "") {
+  document.getElementById("who").textContent = "";
+  app.innerHTML = `
+    <div class="card">
+      <h2>Welcome to Notely</h2>
+      <p>Your private notes, anywhere.</p>
+      <label for="name">Name</label><input id="name" autocomplete="username">
+      <label for="password">Password</label><input id="password" type="password" autocomplete="current-password">
+      <div class="row"><button id="login">Sign in</button><button id="signup" class="secondary">Create account</button></div>
+      <p class="error">${esc(error)}</p>
+    </div>`;
+  const creds = () => ({ name: document.getElementById("name").value, password: document.getElementById("password").value });
+  document.getElementById("login").onclick = async () => { const r = await call("POST", "/api/login", creds()); r.ok ? boot() : renderAuth(r.data?.error || "Could not sign in."); };
+  document.getElementById("signup").onclick = async () => { const r = await call("POST", "/api/signup", creds()); r.ok ? boot() : renderAuth(r.data?.error || "Could not create account."); };
+}
+
+async function renderHome() {
+  const r = await call("GET", "/api/notes");
+  const notes = r.ok ? r.data : [];
+  app.innerHTML = `
+    <div class="card">
+      <h2>New note</h2>
+      <label for="title">Title</label><input id="title">
+      <label for="body">Note</label><textarea id="body"></textarea>
+      <button id="create">Save note</button>
+    </div>
+    <div class="card">
+      <h2>Search</h2>
+      <div class="row"><input id="q" aria-label="Search notes" placeholder="Search your notes"><button id="search">Search</button></div>
+      <ul class="notes" id="results"></ul>
+    </div>
+    <div class="card">
+      <h2>My notes</h2>
+      <ul class="notes">${notes.map((n) => `<li><a href="#/note/${n.id}">${esc(n.title)}</a></li>`).join("") || "<li>No notes yet.</li>"}</ul>
+    </div>`;
+  document.getElementById("create").onclick = async () => {
+    const r = await call("POST", "/api/notes", { title: document.getElementById("title").value, body: document.getElementById("body").value });
+    if (r.ok) { toast("Note saved"); renderHome(); } else toast(r.data?.error || "Could not save");
+  };
+  document.getElementById("search").onclick = async () => {
+    const q = document.getElementById("q").value;
+    const r = await call("GET", "/api/search?q=" + encodeURIComponent(q));
+    const list = document.getElementById("results");
+    if (!r.ok) throw new Error("Search failed with status " + r.status);
+    list.innerHTML = r.data.map((n) => `<li><a href="#/note/${n.id}">${esc(n.title)}</a></li>`).join("") || "<li>No matches.</li>";
+  };
+}
+
+async function renderNote(id) {
+  const r = await call("GET", "/api/notes/" + id);
+  if (!r.ok) { app.innerHTML = `<div class="card"><p class="error">${esc(r.data?.error || "Could not load note")}</p><a href="#/">Back</a></div>`; return; }
+  const n = r.data;
+  app.innerHTML = `
+    <div class="card">
+      <a href="#/">&larr; All notes</a>
+      <h2>${esc(n.title)}</h2>
+      <p>${esc(n.body)}</p>
+    </div>
+    <div class="card">
+      <h3>Edit note</h3>
+      <label for="edit-title">Title</label><input id="edit-title" value="${esc(n.title)}">
+      <label for="edit-body">Note</label><textarea id="edit-body">${esc(n.body)}</textarea>
+      <button id="save-edit">Save changes</button>
+    </div>`;
+  document.getElementById("save-edit").onclick = async () => {
+    const r = await call("PUT", "/api/notes/" + id, { title: document.getElementById("edit-title").value, body: document.getElementById("edit-body").value });
+    toast(r.ok ? "Saved!" : (r.data?.error || "Could not save"));
+  };
+}
+
+async function boot() {
+  const r = await call("GET", "/api/me");
+  if (!r.ok) return renderAuth();
+  me = r.data;
+  document.getElementById("who").innerHTML = `${esc(me.name)} <button id="logout" class="secondary">Sign out</button>`;
+  document.getElementById("logout").onclick = async () => { await call("POST", "/api/logout"); renderAuth(); };
+  route();
+}
+
+function route() {
+  if (!me) return;
+  const m = /^#\/note\/(\d+)$/.exec(location.hash);
+  m ? renderNote(m[1]) : renderHome();
+}
+window.addEventListener("hashchange", route);
+boot();
+</script>
+</body>
+</html>

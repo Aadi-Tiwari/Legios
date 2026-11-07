@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ledgerly</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Segoe UI", system-ui, sans-serif; background: #eef2f0; color: #17201b; }
+  nav { display: flex; justify-content: space-between; align-items: center; padding: 14px 22px; background: #0f3d2e; color: #e8f5ee; }
+  nav b { letter-spacing: .5px; }
+  section { max-width: 640px; margin: 22px auto; background: #fff; border-radius: 12px; padding: 18px 20px; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+  label { display: block; font-size: 13px; color: #44544b; margin-top: 8px; }
+  input, select { width: 100%; padding: 9px; border: 1px solid #c9d4ce; border-radius: 8px; font: inherit; margin-top: 3px; }
+  button { margin-top: 12px; padding: 9px 14px; border: 0; border-radius: 8px; background: #138a5b; color: #fff; font: inherit; cursor: pointer; }
+  button.ghost { background: transparent; color: #e8f5ee; border: 1px solid #5f8d7a; margin: 0; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  td, th { text-align: left; padding: 7px 4px; border-bottom: 1px solid #e4ebe7; font-size: 14px; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  #status { min-height: 20px; margin-top: 10px; font-size: 14px; }
+  .bad { color: #b42318; } .good { color: #0f7a4f; }
+</style>
+</head>
+<body>
+<nav><b>Ledgerly</b><span id="who"></span></nav>
+<div id="root"></div>
+<script>
+let me = null;
+const root = document.getElementById("root");
+const h = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const api = async (method, path, data) => {
+  const r = await fetch(path, { method, headers: { "content-type": "application/json" }, body: data ? JSON.stringify(data) : undefined });
+  let json = null; try { json = await r.json(); } catch {}
+  return { ok: r.ok, status: r.status, json };
+};
+const say = (text, ok) => { const s = document.getElementById("status"); if (s) { s.textContent = text; s.className = ok ? "good" : "bad"; } };
+
+function loginView(message = "") {
+  document.getElementById("who").innerHTML = "";
+  root.innerHTML = `<section>
+    <h2>Track what you spend</h2>
+    <label for="email">Email</label><input id="email" type="email" autocomplete="email">
+    <label for="pw">Password</label><input id="pw" type="password">
+    <button id="do-login">Log in</button> <button id="do-register">Register</button>
+    <div id="status" role="status" class="bad">${h(message)}</div></section>`;
+  const creds = () => ({ email: document.getElementById("email").value, password: document.getElementById("pw").value });
+  document.getElementById("do-login").onclick = async () => { const r = await api("POST", "/auth/login", creds()); r.ok ? start() : say(r.json?.error || "Could not log in.", false); };
+  document.getElementById("do-register").onclick = async () => { const r = await api("POST", "/auth/register", creds()); r.ok ? start() : say(r.json?.error || "Could not register.", false); };
+}
+
+async function ledgerView(message) {
+  const r = await api("GET", "/api/expenses?owner=" + encodeURIComponent(me.id));
+  const rows = r.ok ? r.json : [];
+  const total = rows.reduce((t, e) => t + Number(e.amount), 0);
+  root.innerHTML = `<section>
+    <h2>Add an expense</h2>
+    <label for="desc">Description</label><input id="desc">
+    <label for="amount">Amount</label><input id="amount" inputmode="decimal" placeholder="12.50">
+    <label for="cat">Category</label><select id="cat"><option>Food</option><option>Health</option><option>Travel</option><option>Other</option></select>
+    <button id="add">Add expense</button>
+    <div id="status" role="status"></div>
+  </section>
+  <section>
+    <h2>Your expenses</h2>
+    <table><thead><tr><th>Description</th><th>Category</th><th>Amount</th></tr></thead>
+    <tbody>${rows.map((e) => `<tr><td>${h(e.description)}</td><td>${h(e.category)}</td><td class="num">$${h(e.amount)}</td></tr>`).join("") || `<tr><td colspan="3">Nothing yet.</td></tr>`}</tbody></table>
+    <p>Total: <b>$${total.toFixed(2)}</b></p>
+  </section>`;
+  if (message) say(message, true);
+  document.getElementById("add").onclick = async () => {
+    const r = await api("POST", "/api/expenses", { description: document.getElementById("desc").value, amount: document.getElementById("amount").value, category: document.getElementById("cat").value });
+    if (r.ok) ledgerView("Expense added."); else say(r.json?.error || "Could not add the expense.", false);
+  };
+}
+
+async function start() {
+  const r = await api("GET", "/auth/whoami");
+  if (!r.ok) return loginView();
+  me = r.json;
+  document.getElementById("who").innerHTML = `${h(me.email)} <button class="ghost" id="logout">Log out</button>`;
+  document.getElementById("logout").onclick = async () => { await api("POST", "/auth/logout"); me = null; loginView(); };
+  ledgerView();
+}
+start();
+</script>
+</body>
+</html>

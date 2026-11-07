@@ -1,0 +1,12 @@
+[
+  {
+    "file": "server.mjs",
+    "bytes": 7185,
+    "sha256": "c6e57682c2cdaa9f7d81cddc35e4616a4dee31de7e7f1bbd3a9572244f0a2710"
+  },
+  {
+    "file": "public\\index.html",
+    "bytes": 9296,
+    "sha256": "adb045495320f1bae52dcba3603678d2ba01534c8bfd80f0ef05f48f512dab4a"
+  }
+]

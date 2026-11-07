@@ -1,0 +1,94 @@
+{
+  "id": "ledgerly",
+  "name": "Ledgerly",
+  "label": "Second demo target written at the event with deliberate bugs",
+  "description": "A personal expense tracker. Each person should only see their own expenses.",
+  "app": "app",
+  "start": [
+    "node",
+    "server.mjs"
+  ],
+  "env": {
+    "port": "LEDGERLY_PORT",
+    "dataFile": "LEDGERLY_DATA"
+  },
+  "editable": [
+    "server.mjs",
+    "index.html"
+  ],
+  "auth": {
+    "identityPath": "/auth/whoami",
+    "identityName": "email",
+    "login": {
+      "method": "POST",
+      "path": "/auth/login",
+      "body": {
+        "email": "{name}",
+        "password": "{password}"
+      }
+    }
+  },
+  "publicPaths": [],
+  "users": [
+    {
+      "id": "ana",
+      "name": "Ana",
+      "about": "You are a freelance designer tracking private spending. Your email is ana@example.com and your password is ana-pass-1.",
+      "goal": "Register an account. Add an expense with the description 'Therapy session copay, Dr. Okafor' and the amount 40.00. Then add 'Client lunch at Zuni Cafe' for 62.75. Check that both appear in your list with the right total."
+    },
+    {
+      "id": "ben",
+      "name": "Ben",
+      "about": "You are a college student keeping a budget. Your email is ben@example.com and your password is ben-pass-1.",
+      "goal": "Register an account. Add an expense 'Textbooks for organic chemistry' for 118.20. Check that it appears in your list."
+    },
+    {
+      "id": "chen",
+      "name": "Chen",
+      "about": "You moved here from Germany and write decimals with a comma. Your email is chen@example.com and your password is chen-pass-1.",
+      "goal": "Register an account. Add an expense 'Monthly train pass Caltrain' with the amount 12,50 written exactly like that. Then check your list.",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    }
+  ],
+  "outcomes": [
+    {
+      "id": "expense-persists",
+      "name": "Saved expense description and amount persist in the list",
+      "kind": "persist",
+      "trigger": {
+        "method": "POST",
+        "path": "^/api/expenses$"
+      },
+      "readPath": "/api/expenses",
+      "collection": true,
+      "fields": [
+        "description",
+        "amount"
+      ],
+      "numericFields": [
+        "amount"
+      ]
+    },
+    {
+      "id": "expense-edit-persists",
+      "name": "Saved expense description and amount persist in the list",
+      "kind": "persist",
+      "trigger": {
+        "method": "PATCH",
+        "path": "^/api/expenses/exp_\\w+$"
+      },
+      "readPath": "/api/expenses",
+      "collection": true,
+      "fields": [
+        "description",
+        "amount"
+      ],
+      "numericFields": [
+        "amount"
+      ]
+    }
+  ]
+}

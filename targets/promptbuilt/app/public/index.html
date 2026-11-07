@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pantry Share</title>
+<style>
+:root{font-family:system-ui,sans-serif;color:#20362e;background:#f5f5ef}*{box-sizing:border-box}body{margin:0}main{max-width:1050px;margin:auto;padding:36px 22px}header{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:30px}h1{margin:0;font-size:30px;letter-spacing:-1px}h2{font-size:21px;margin:0 0 18px}p{color:#627167}button,input,textarea{font:inherit}button{cursor:pointer;border:0;border-radius:8px;padding:10px 16px;background:#286346;color:white}button.secondary{background:#e9eee6;color:#294a36}button.danger{color:#a33232;background:#faeeee}button:disabled{opacity:.6;cursor:wait}input,textarea{width:100%;padding:11px;border:1px solid #cad2c7;border-radius:8px;background:white;color:inherit}input:focus,textarea:focus{outline:2px solid #619c76;outline-offset:2px}label{display:block;font-size:14px;margin-bottom:15px}label input,label textarea{margin-top:6px}textarea{resize:vertical;min-height:80px}.panel{background:white;border:1px solid #dce1d5;border-radius:14px;padding:24px}.auth{max-width:440px;margin:60px auto}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.check{display:flex;align-items:center;gap:9px}.check input{width:auto;margin:0}.layout{display:grid;grid-template-columns:300px 1fr;gap:26px}.search{margin-bottom:22px}.cards{display:grid;gap:12px;margin-bottom:28px}.card{background:#fff;border:1px solid #dce1d5;border-radius:12px;padding:18px}.card h3{margin:0;font-size:18px;overflow-wrap:anywhere}.card p{white-space:pre-wrap;overflow-wrap:anywhere;margin:10px 0}.card small{color:#627167}.card .top{display:flex;justify-content:space-between;gap:14px}.tag{font-size:12px;background:#e9eee6;padding:3px 8px;border-radius:20px}.actions{margin-top:14px}.actions button{font-size:13px;padding:7px 12px}#message{color:#993b22;min-height:24px;margin:12px 0} [hidden]{display:none!important}.muted{color:#627167;font-size:14px}@media(max-width:720px){.layout{grid-template-columns:1fr}header{align-items:flex-start}main{padding:24px 16px}}
+</style>
+</head>
+<body><main>
+<header><div><h1>Pantry Share</h1><p>A little less waste. A little more sharing.</p></div><div id="account" class="row" hidden><span id="username"></span><button id="logout" class="secondary">Log out</button></div></header>
+<div id="message" role="status" aria-live="polite"></div>
+<section id="auth" class="panel auth"><h2 id="auth-title">Welcome home</h2><p id="auth-copy">Log in to your house pantry.</p><form id="auth-form"><label>Username<input id="auth-name" autocomplete="username" required minlength="3" maxlength="32" pattern="[a-zA-Z0-9_-]+"></label><label>Password<input id="auth-password" type="password" autocomplete="current-password" required minlength="8" maxlength="128"></label><div class="row"><button id="auth-submit">Log in</button><button id="auth-toggle" type="button" class="secondary">Create an account</button></div></form></section>
+<section id="app" hidden><div class="layout"><aside><form id="item-form" class="panel"><h2 id="form-title">Add to your pantry</h2><label>Item name<input id="item-name" required maxlength="120" placeholder="e.g. Oat milk"></label><label>Price ($)<input id="item-price" type="number" required min="0" max="1000000" step="0.01" placeholder="0.00"></label><label>Notes<textarea id="item-notes" maxlength="2000" placeholder="Where it is, use-by date..."></textarea></label><label class="check"><input id="item-shared" type="checkbox">Share with the house</label><p class="muted">Private items are visible only to you. Shared items appear on the house board.</p><div class="row"><button id="save-item">Add item</button><button id="cancel" type="button" class="secondary" hidden>Cancel</button></div></form></aside><div><input id="search" class="search" type="search" aria-label="Search items" placeholder="Search item names and notes..."><h2>My pantry</h2><div id="mine" class="cards"></div><h2>House board</h2><p class="muted">Shared food from everyone, including you.</p><div id="board" class="cards"></div></div></div></section>
+</main><script>
+const $ = id => document.getElementById(id);
+let user = null, items = [], signup = false, editing = null;
+async function api(path, method = 'GET', body) {
+  const response = await fetch(path, { method, headers: { 'Content-Type': 'application/json' }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || 'Request failed.');
+  return result;
+}
+function message(text = '') { $('message').textContent = text; }
+function resetForm() { editing = null; $('item-form').reset(); $('form-title').textContent = 'Add to your pantry'; $('save-item').textContent = 'Add item'; $('cancel').hidden = true; }
+function showUser() { $('auth').hidden = !!user; $('app').hidden = !user; $('account').hidden = !user; $('username').textContent = user?.username || ''; }
+async function load() { items = (await api('/api/items')).items; render(); }
+function render() {
+  const query = $('search').value.toLowerCase();
+  const filtered = items.filter(i => (i.name + ' ' + i.notes).toLowerCase().includes(query));
+  for (const [id, list] of [['mine', filtered.filter(i => i.ownerId === user.id)], ['board', filtered.filter(i => i.shared)]]) {
+    $(id).replaceChildren();
+    if (!list.length) { const p = document.createElement('p'); p.className = 'muted'; p.textContent = query ? 'No matching items.' : id === 'mine' ? 'Your pantry is empty. Add your first item.' : 'No shared items yet.'; $(id).append(p); }
+    for (const item of list) {
+      const card = document.createElement('article'); card.className = 'card';
+      const top = document.createElement('div'); top.className = 'top';
+      const title = document.createElement('h3'); title.textContent = item.name;
+      const price = document.createElement('strong'); price.textContent = '$' + item.price.toFixed(2); top.append(title, price);
+      const info = document.createElement('small'); info.textContent = id === 'board' ? 'From ' + item.owner : item.shared ? 'Shared with the house' : 'Private';
+      card.append(top, info);
+      if (item.notes) { const notes = document.createElement('p'); notes.textContent = item.notes; card.append(notes); }
+      if (item.ownerId === user.id) {
+        const actions = document.createElement('div'); actions.className = 'row actions';
+        const edit = document.createElement('button'); edit.className = 'secondary'; edit.textContent = 'Edit'; edit.onclick = () => { editing = item.id; $('item-name').value = item.name; $('item-price').value = item.price; $('item-notes').value = item.notes; $('item-shared').checked = item.shared; $('form-title').textContent = 'Edit item'; $('save-item').textContent = 'Save changes'; $('cancel').hidden = false; $('item-name').focus(); };
+        const remove = document.createElement('button'); remove.className = 'danger'; remove.textContent = 'Delete'; remove.onclick = async () => { if (!confirm('Delete ' + item.name + '?')) return; try { await api('/api/items/' + item.id, 'DELETE', {}); if (editing === item.id) resetForm(); await load(); message('Item deleted.'); } catch (e) { message(e.message); } };
+        actions.append(edit, remove); card.append(actions);
+      }
+      $(id).append(card);
+    }
+  }
+}
+$('auth-toggle').onclick = () => { signup = !signup; $('auth-title').textContent = signup ? 'Join the pantry' : 'Welcome home'; $('auth-copy').textContent = signup ? 'Create your own private pantry and share with housemates.' : 'Log in to your house pantry.'; $('auth-submit').textContent = signup ? 'Sign up' : 'Log in'; $('auth-toggle').textContent = signup ? 'Back to log in' : 'Create an account'; $('auth-password').autocomplete = signup ? 'new-password' : 'current-password'; message(); };
+$('auth-form').onsubmit = async event => { event.preventDefault(); $('auth-submit').disabled = true; try { user = (await api(signup ? '/api/signup' : '/api/login', 'POST', { username: $('auth-name').value, password: $('auth-password').value })).user; $('auth-form').reset(); showUser(); await load(); message(); } catch (e) { message(e.message); } finally { $('auth-submit').disabled = false; } };
+$('logout').onclick = async () => { try { await api('/api/logout', 'POST', {}); user = null; items = []; $('mine').replaceChildren(); $('board').replaceChildren(); $('search').value = ''; resetForm(); showUser(); message(); } catch (e) { message(e.message); } };
+$('item-form').onsubmit = async event => { event.preventDefault(); $('save-item').disabled = true; try { await api(editing ? '/api/items/' + editing : '/api/items', editing ? 'PUT' : 'POST', { name: $('item-name').value, price: $('item-price').value, notes: $('item-notes').value, shared: $('item-shared').checked }); resetForm(); await load(); message('Pantry updated.'); } catch (e) { message(e.message); } finally { $('save-item').disabled = false; } };
+$('cancel').onclick = resetForm;
+$('search').oninput = render;
+(async () => { try { user = (await api('/api/me')).user; showUser(); if (user) await load(); } catch (e) { message(e.message); } })();
+</script></body></html>

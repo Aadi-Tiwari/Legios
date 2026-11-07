@@ -1,0 +1,145 @@
+// Turns findings into regression tests the developer keeps. Each test replays the recorded journey
+// in fresh browser sessions and checks that specific failure. It fails on the buggy app and passes
+// once the fix is in, so the bug cannot silently come back.
+// node tools/export-tests.mjs <runDir> [outDir]   ->  <outDir>/<finding>.test.mjs
+// Run one with: node <file> http://127.0.0.1:<port>
+import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { join, resolve } from "node:path";
+import { loadTarget } from "../lib/config.mjs";
+import { credentialsOf } from "../lib/checks.mjs";
+
+const runDir = resolve(process.argv[2]);
+const outDir = resolve(process.argv[3] || join(runDir, "regression-tests"));
+const rec = JSON.parse(await readFile(join(runDir, "recording.json"), "utf8"));
+const target = await loadTarget(rec.target || "notely");
+const findings = JSON.parse(await readFile(join(runDir, "findings.json"), "utf8"));
+await mkdir(outDir, { recursive: true });
+
+const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
+const MUTATING = ["POST", "PUT", "PATCH"];
+
+function journeyFor(finding) {
+  const names = [finding.user, finding.owner, finding.probe?.ownerName, finding.probe?.requesterName].filter(Boolean);
+  const users = rec.records.filter((r) => names.includes(r.name));
+  return users.map((u) => ({ name: u.name, viewport: u.viewport || null,
+    steps: u.steps.filter((s) => !s.error).map((s) => ({ n: s.n, at: s.at, action: s.action, text: s.text, target: s.target })) }));
+}
+
+function testSource(finding) {
+  const journeys = journeyFor(finding);
+  let check;
+  if (finding.kind === "data_leak") {
+    const login = target.auth?.login ? { ...target.auth.login, identityPath: target.auth.identityPath } : null;
+    const creds = Object.fromEntries(journeys.map((j) => [j.name, credentialsOf(rec.records.find((r) => r.name === j.name).steps)]));
+    check = `
+  // Journeys can end signed out, so each person signs back in with the test login they used.
+  const login = ${JSON.stringify(login)};
+  const creds = ${JSON.stringify(creds)};
+  for (const [name, c] of Object.entries(creds)) {
+    if (!login || !c) continue;
+    const body = JSON.parse(JSON.stringify(login.body).replace("{name}", c.name).replace("{password}", c.password));
+    await sessions[name].context.request.fetch(base + login.path, { method: login.method || "POST", data: body, headers: { "content-type": "application/json" } });
+  }
+  // The owner's private text must not reach anyone else, and the owner must keep access.
+  const secret = ${JSON.stringify(finding.probe.secret)};
+  const owner = sessions[${JSON.stringify(finding.probe.ownerName)}];
+  // Use the same kind of request that leaked (ids may differ in this fresh run).
+  const shape = (p) => p.split("?")[0].replace(/\\/(\\d+|[0-9a-f-]{8,}|[a-z]+_\\w+)(?=\\/|$)/gi, "/:id");
+  const leakedShape = shape(${JSON.stringify(finding.probe.path)});
+  const read = [...owner.reads].reverse().find((r) => r.body.includes(secret) && shape(r.path) === leakedShape);
+  assert.ok(read, "the journey should read the owner's private data back");
+  ${finding.probe.anonymous ? "" : `const other = sessions[${JSON.stringify(finding.probe.requesterName)}];
+  const asOther = await (await other.context.request.get(base + read.path)).text();
+  assert.ok(!asOther.includes(secret), ${JSON.stringify(`${finding.probe.requesterName} must not read ${finding.probe.ownerName}'s private data`)});`}
+  const anon = await request.newContext();
+  assert.ok(!(await (await anon.get(base + read.path)).text()).includes(secret), "a signed-out visitor must not read it");
+  await anon.dispose();
+  const mine = await owner.context.request.get(base + read.path);
+  assert.ok(mine.ok() && (await mine.text()).includes(secret), "the owner must still read their own data");`;
+  } else if (finding.kind === "crash") {
+    const [method, path] = finding.evidence.request.split(" ");
+    const sig = path.split("?")[0];
+    check = `
+  // The request that crashed must not return a server error.
+  const user = sessions[${JSON.stringify(finding.user)}];
+  const hits = user.calls.filter((c) => c.method === ${JSON.stringify(method)} && c.path.split("?")[0] === ${JSON.stringify(sig)});
+  assert.ok(hits.length > 0, "the journey should send ${method} ${sig}");
+  for (const h of hits) assert.ok(h.status < 500, \`${method} ${sig} returned \${h.status}\`);`;
+  } else {
+    check = `
+  // When the app says it saved, the save request must have succeeded.
+  const user = sessions[${JSON.stringify(finding.user)}];
+  const step = user.stepCalls[${JSON.stringify(finding.evidence.step)}] || [];
+  const writes = step.filter((c) => ${JSON.stringify(MUTATING)}.includes(c.method));
+  assert.ok(writes.length > 0, "pressing the save control should send a save request");
+  for (const w of writes) assert.ok(w.status < 300, \`\${w.method} \${w.path} returned \${w.status}\`);`;
+  }
+  return `// Regression test generated by Legios for: ${finding.title}
+// Expected: ${finding.expected}
+// Found by: ${finding.evidence?.discovery || "live exploration"}. Replays the recorded journey, no AI calls.
+// Usage: node ${slug(finding.title)}.test.mjs http://127.0.0.1:<port>   (against a fresh copy of the app)
+import { chromium, request } from "playwright";
+import assert from "node:assert/strict";
+
+const base = (process.argv[2] || "http://127.0.0.1:4100").replace(/\\/$/, "");
+const journeys = ${JSON.stringify(journeys, null, 2)};
+
+function locate(page, t) {
+  if (t.selector) return page.locator(t.selector);
+  if (t.kind === "link") return page.getByRole("link", { name: t.name, exact: true }).first();
+  if (t.kind === "button") return page.getByRole("button", { name: t.name, exact: true });
+  if (t.kind === "dropdown") return page.getByRole("combobox", { name: t.name, exact: true });
+  return page.getByLabel(t.name, { exact: true });
+}
+
+const browser = await chromium.launch();
+const sessions = {};
+try {
+  for (const j of journeys) {
+    const context = await browser.newContext({ viewport: j.viewport || { width: 1100, height: 800 } });
+    const page = await context.newPage();
+    const s = sessions[j.name] = { context, page, calls: [], reads: [], stepCalls: {}, current: null };
+    page.on("response", async (r) => {
+      if (!["fetch", "xhr"].includes(r.request().resourceType())) return;
+      const u = new URL(r.url());
+      const call = { method: r.request().method(), path: u.pathname + u.search, status: r.status(), body: await r.text().catch(() => "") };
+      s.calls.push(call);
+      if (call.method === "GET" && call.status < 300) s.reads.push(call);
+      if (s.current !== null) (s.stepCalls[s.current] ||= []).push(call);
+    });
+    await page.goto(base);
+    await page.waitForTimeout(300);
+  }
+  const timeline = journeys.flatMap((j) => j.steps.map((step) => ({ j, step }))).sort((a, b) => a.step.at - b.step.at);
+  for (const { j, step } of timeline) {
+    const s = sessions[j.name];
+    s.current = step.n;
+    if (step.action === "goto") await s.page.goto(new URL(step.target.path, base).href);
+    else {
+      const loc = locate(s.page, step.target);
+      if (step.action === "type") await loc.fill(step.text ?? "", { timeout: 5000 });
+      else if (step.action === "choose") await loc.selectOption({ label: step.text }, { timeout: 5000 });
+      else await loc.click({ timeout: 5000 });
+    }
+    await s.page.waitForTimeout(400);
+    s.current = null;
+  }
+${check}
+  console.log("PASS no longer happens: ${finding.title.replace(/"/g, "'").replace(/`/g, "'")}");
+} catch (error) {
+  console.log("FAIL " + error.message);
+  process.exitCode = 1;
+} finally {
+  await browser.close();
+}
+`;
+}
+
+const written = [];
+for (const f of findings.filter((x) => x.status === "confirmed")) {
+  const file = join(outDir, `${slug(f.kind + "-" + f.title)}.test.mjs`);
+  await writeFile(file, testSource(f));
+  written.push({ file, finding: f.title, kind: f.kind });
+}
+await writeFile(join(outDir, "index.json"), JSON.stringify(written, null, 2));
+console.log(written.map((w) => `${w.kind}: ${w.file}`).join("\n"));
