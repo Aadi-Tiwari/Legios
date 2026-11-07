@@ -1,0 +1,17 @@
+{
+  "target": "notely",
+  "signature": "false_success:PUT /api/note/:id",
+  "title": "\"Saved!\" shown, but Maria's change was not saved",
+  "savedAt": "2026-11-07T22:10:43.395Z",
+  "summary": "Fixed the edit endpoint and show success only when the save succeeds.",
+  "applied": [
+    {
+      "path": "public/index.html",
+      "reason": "Use the existing owner-protected PUT /api/notes/:id route and check its response before displaying Saved!.",
+      "before": "5db7c8931dd3bd345f7bcba6c21d2e0e1c58d97d83c2aea244503233f078f6d3",
+      "after": "8c154150ae90d86dd0ea72ba87a3050d6dbc4d1e63ba1ede46b415d74d63df8f"
+    }
+  ],
+  "diff": "diff --git a/public/index.html b/public/index.html\nindex 65f823b..c0da234 100644\n--- a/public/index.html\n+++ b/public/index.html\n@@ -101,8 +101,8 @@ async function renderNote(id) {\n       <button id=\"save-edit\">Save changes</button>\n     </div>`;\n   document.getElementById(\"save-edit\").onclick = async () => {\n-    await call(\"PUT\", \"/api/note/\" + id, { title: document.getElementById(\"edit-title\").value, body: document.getElementById(\"edit-body\").value });\n-    toast(\"Saved!\");\n+    const r = await call(\"PUT\", \"/api/notes/\" + id, { title: document.getElementById(\"edit-title\").value, body: document.getElementById(\"edit-body\").value });\n+    if (r.ok) toast(\"Saved!\"); else toast(r.data?.error || \"Could not save\");\n   };\n }\n \n",
+  "model": "Codex CLI (local login)"
+}

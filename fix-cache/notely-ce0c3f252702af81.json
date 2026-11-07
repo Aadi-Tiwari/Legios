@@ -1,0 +1,17 @@
+{
+  "target": "notely",
+  "signature": "crash:GET /api/search",
+  "title": "Server error when Priya used /api/search",
+  "savedAt": "2026-11-07T22:10:43.396Z",
+  "summary": "Escaped search text before constructing the regular expression so queries such as c++ (pointers) work literally without crashing. Owner filtering remains intact. Not executed, as requested.",
+  "applied": [
+    {
+      "path": "server.mjs",
+      "reason": "Treat search input as literal text so regular-expression metacharacters cannot cause a syntax error or alter matching.",
+      "before": "2081f4ebfd4b5ca50aec92a00b7ca89feebcf1f922c4ff35ab2727d672fc208b",
+      "after": "c4cff401507e5c1647df39a6f32f7062dd9652c8ac93188c00281298ccdb1e3d"
+    }
+  ],
+  "diff": "diff --git a/server.mjs b/server.mjs\nindex 019cd28..718b671 100644\n--- a/server.mjs\n+++ b/server.mjs\n@@ -82,7 +82,7 @@ async function api(req, res, url) {\n   }\n   if (method === \"GET\" && pathname === \"/api/search\") {\n     const q = url.searchParams.get(\"q\") || \"\";\n-    const pattern = new RegExp(q, \"i\");\n+    const pattern = new RegExp(q.replace(/[.*+?^${}()|[\\]\\\\]/g, \"\\\\$&\"), \"i\");\n     return send(res, 200, db.notes.filter((n) => n.ownerId === user.id && (pattern.test(n.title) || pattern.test(n.body))).map(publicNote));\n   }\n \n",
+  "model": "Codex CLI (local login)"
+}

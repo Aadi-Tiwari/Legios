@@ -249,7 +249,7 @@ function renderFindings(st, busy) {
     if (!fb?.byKind?.length) return null;
     const LABEL = { confusing: "Confusing", frustrating: "Frustrating", missing: "Missing", liked: "Liked" };
     return h("div", { class: "feedback" },
-      h("div", { class: "fbhead", text: `What the AI users said (opinions, not confirmed bugs) · goal met ${fb.goalMet}/${fb.users}` }),
+      h("div", { class: "fbhead", text: `What the AI users said (opinions, not confirmed bugs) · finished their goal ${fb.goalMet}/${fb.users}${fb.stuck ? ` · stuck ${fb.stuck}` : ""}` }),
       fb.byKind.filter((g) => g.kind !== "liked").flatMap((g) => g.points.slice(0, 3).map((p) =>
         h("div", { class: `fb ${g.kind}` }, h("span", { class: "fbkind", text: LABEL[g.kind] }), h("span", { text: `${p.user}: ${p.text}` })))));
   };

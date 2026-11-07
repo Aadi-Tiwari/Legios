@@ -12,6 +12,7 @@ import { runScale } from "./lib/scale.mjs";
 import { loadTarget, listTargets } from "./lib/config.mjs";
 import { draftPersonas } from "./lib/personas.mjs";
 import { forgetAll, loadMemory } from "./features/memory.mjs";
+import { saveVerifiedFix, loadVerifiedFix, applyCachedFix } from "./lib/fixcache.mjs";
 import { recheckFindings } from "./lib/recheck.mjs";
 import { findingReport } from "./lib/report.mjs";
 
@@ -94,19 +95,38 @@ async function fixFinding(index, { headed = false } = {}) {
     persist();
     log("Codex is drafting a fix from the evidence");
     const candidateDir = join(runDir(), "candidate-" + index);
-    Object.assign(fix, await draftFix({ target, appDir: baseDir, finding, candidateDir }));
+    // Live drafting first. If it fails or takes too long (for example, no internet), fall back to the
+    // patch saved from an earlier verified run, labelled as cached. Verification below always runs live.
+    const limitMs = Number(process.env.LEGIOS_DRAFT_TIMEOUT_MS || 90_000);
+    let drafted = null, draftError = null, workDir = candidateDir;
+    try {
+      drafted = await Promise.race([
+        draftFix({ target, appDir: baseDir, finding, candidateDir }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error(`Codex took longer than ${Math.round(limitMs / 1000)} s`)), limitMs)),
+      ]);
+    } catch (error) { draftError = error; }
+    if (!drafted || drafted.status === "no_change") {
+      const cached = await loadVerifiedFix(target, finding);
+      if (cached) {
+        log(`Live drafting ${draftError ? `failed (${draftError.message})` : "proposed no change"}; using the cached fix from an earlier verified run`);
+        // A separate folder, so a late Codex reply can never overwrite the cached candidate.
+        workDir = candidateDir + "-cached";
+        drafted = await applyCachedFix({ target, baseDir, candidateDir: workDir, cached });
+      } else if (draftError) throw draftError;
+    }
+    Object.assign(fix, drafted);
     log(`Fix proposed in ${fix.seconds}s: ${fix.applied.map((a) => a.path).join(", ") || "no change"}`);
     if (fix.status === "no_change") return;
     fix.status = "verifying";
     persist();
     log("Running the patched copy on its own port and replaying the same journey");
-    fix.after = await verifyFinding({ target, appDir: candidateDir, port: 4103, records, finding, headed });
+    fix.after = await verifyFinding({ target, appDir: workDir, port: 4103, records, finding, headed });
     fix.status = fix.after.status;
     if (fix.status === "fixed") {
       const previous = state.latestFixed;
-      state.recheck = { status: "running", appDir: candidateDir, results: [] };
+      state.recheck = { status: "running", appDir: workDir, results: [] };
       log("Rechecking every original finding against the combined repairs");
-      const sweep = await recheckFindings({ target, appDir: candidateDir, records, findings: state.findings,
+      const sweep = await recheckFindings({ target, appDir: workDir, records, findings: state.findings,
         onResult: (row) => { state.recheck.results.push(row); persist(); } });
       const formerlyFixed = new Set(Object.entries(state.fixes).filter(([signature, item]) => signature !== finding.signature && ["fixed", "already_fixed"].includes(item.status)).map(([signature]) => signature));
       formerlyFixed.add(finding.signature);
@@ -117,9 +137,10 @@ async function fixFinding(index, { headed = false } = {}) {
         state.rejectedRecheck = sweep;
         state.recheck = previous ? await recheckFindings({ target, appDir: previous, records, findings: state.findings }) : null;
       } else {
-        state.latestFixed = candidateDir;
+        state.latestFixed = workDir;
         state.fixedCount = (state.fixedCount || 0) + 1;
         state.recheck = sweep;
+        if (!fix.cached) await saveVerifiedFix(target, finding, fix).catch(() => {});
       }
     }
     log(fix.status === "fixed" ? `Verified: "${finding.title}" no longer happens and the normal flow still works` : `Not verified: ${fix.status}`);
