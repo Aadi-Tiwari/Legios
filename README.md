@@ -12,10 +12,6 @@ Track: Automate.
 - **Notely** and **Ledgerly** were written today with deliberate, disclosed bugs, so results can be checked against known answers.
 - **Pantry Share** (`targets/promptbuilt`) was built today by an AI coding agent from one plain prompt (`PROMPT.txt`) and is tested unmodified (`FINGERPRINT.json`). Nobody planted bugs in it.
 
-**Earlier work it builds on:**
-- **Salus** (my earlier security tool): Legios calls the Codex CLI for repair drafts the way Salus's remediation agent does (read-only sandbox, structured output, no API key).
-- **An agent engine I built earlier:** the idea of persistent simulated people with their own goals and memory, driven by a local model. None of its code is used here.
-
 ## How it compares
 
 AI testing products such as Momentic, QA.tech and Checksum already write, run and maintain end-to-end tests with AI, and some explore apps on their own. Legios is not trying to replace them. What it does differently:
