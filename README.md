@@ -4,6 +4,8 @@ You tested your app as yourself. Legios tests what happens when other people use
 
 Legios sends independent AI users into a web app you are building, records everything they do, turns suspicious observations into confirmed findings, drafts a code fix for a finding, and proves the fix by replaying the same journey against the patched app. Recorded journeys can then be repeated as a crowd of 150 simultaneous browser users.
 
+Link: https://legios.vercel.app/ 
+
 ## Built at Zero to Demo (November 7, 2026)
 
 Track: Automate.
